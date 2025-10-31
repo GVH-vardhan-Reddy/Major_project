@@ -1,0 +1,26 @@
+<h2>Room: {{ room_name }}</h2>
+<div id="chat-log"></div>
+<input id="chat-message-input" type="text" size="100">
+<button id="chat-message-submit">Send</button>
+<form method="POST" enctype="multipart/form-data" action="{% url 'chat:upload_file' %}">
+    {% csrf_token %}
+    <input type="file" name="file" accept=".pdf,.txt">
+    <button type="submit">Upload</button>
+</form>
+<script>
+  const roomName = "{{ room_name }}";
+  const chatSocket = new WebSocket(
+      "ws://" + window.location.host + "/ws/chat/" + roomName + "/"
+  );
+
+  chatSocket.onmessage = function(e) {
+    const data = JSON.parse(e.data);
+    document.querySelector("#chat-log").innerHTML += "<div>"+ data.message +"</div>";
+  };
+
+  document.querySelector("#chat-message-submit").onclick = function(e) {
+    const input = document.querySelector("#chat-message-input");
+    chatSocket.send(JSON.stringify({"message": input.value}));
+    input.value = "";
+  };
+</script>

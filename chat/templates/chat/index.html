@@ -1,0 +1,13 @@
+<h2>Enter Chat Room</h2>
+<form>
+  <input id="room-name-input" type="text" placeholder="Room Name" required>
+  <button id="room-name-submit">Join</button>
+</form>
+
+<script>
+  document.querySelector("#room-name-submit").onclick = function(e) {
+    e.preventDefault();
+    const roomName = document.querySelector("#room-name-input").value;
+    window.location.pathname = "/chat/" + roomName + "/";
+  }
+</script>
