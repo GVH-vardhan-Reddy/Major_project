@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
+import os # <-- ADDED: Import os for path joining
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -52,7 +53,6 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = 'chat_project.urls'
-
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
@@ -62,7 +62,10 @@ TEMPLATES = [
             'context_processors': [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
-                'django.contrib.messages.context_processors.messages',
+                # This is the correct path:
+                'django.contrib.messages.context_processors.messages', 
+                # REMOVE the following incorrect line that caused the error:
+                # 'django.template.context_processors.messages', 
             ],
         },
     },
@@ -118,10 +121,22 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 
+
+# File Uploads (Media Files) Configuration 💾
+# This tells Django where to physically store user-uploaded files (like chat files)
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media') # <-- ADDED: Absolute path to media directory
+MEDIA_URL = '/media/' # <-- ADDED: URL prefix for accessing media files
+
+# Custom Configuration for Fernet Encryption 🔑
+# Generate a Fernet key using `Fernet.generate_key().decode()` and paste it here.
+# For security, you must change this key!
+FERNET_KEY = b'4JgS3I3-v9qL-s9r-6e2X1N1c5L4o7Y7Z0R5k7B8c3D9k4h7E8F9G0H1J2K3L4M5N6O7P8Q9R0S1T2U3V4W5X6Y7Z8' # <-- ADDED: Encryption Key
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
 # Channels configuration
 ASGI_APPLICATION = "chat_project.asgi.application"
 
