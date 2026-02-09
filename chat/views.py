@@ -1,3 +1,4 @@
+import traceback
 import os
 import json
 import tempfile
@@ -10,9 +11,34 @@ from django.views.decorators.http import require_POST
 from django.conf import settings
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
-
+import google.generativeai as genai
 from .utils import encrypt_link, decrypt_link
+from django.views.decorators.csrf import csrf_exempt
+genai.configure(api_key=settings.GOOGLE_API_KEY)
 
+@csrf_exempt
+@csrf_exempt
+def chatbot_response(request):
+    if request.method == "POST":
+        try:
+            genai.configure(api_key=settings.GOOGLE_API_KEY)
+            
+            # Using the alias found in your terminal list
+            model = genai.GenerativeModel("gemini-flash-latest")
+
+            data = json.loads(request.body)
+            user_message = data.get("message")
+            
+            response = model.generate_content(user_message)
+            
+            return JsonResponse({"reply": response.text})
+
+        except Exception as e:
+            print(f"Error during AI generation: {e}")
+            traceback.print_exc()
+            return JsonResponse({"error": str(e)}, status=500)
+    
+    return render(request, "chatbot/room.html")
 # Load the AI model once at startup
 MODEL_PATH = os.path.join(settings.BASE_DIR, 'chat_filter_model.pkl')
 try:
@@ -77,25 +103,30 @@ def upload_file(request):
 
         # 3. Save & Broadcast
         try:
+            # Save to physical storage
             filename = fs.save(uploaded_file.name, uploaded_file)
             file_url = fs.url(filename) 
-            encrypted_link = encrypt_link(file_url) #
             
+            # ENCRYPT the link using your helper (e.g., Fernet)
+            encrypted_link = encrypt_link(file_url)
+            
+            # Broadcast to the room via Channels
             channel_layer = get_channel_layer()
             room_group_name = f'chat_{room_name}' 
             
-            # Broadcast the link to the WebSocket group
             async_to_sync(channel_layer.group_send)(
                 room_group_name,
                 {
-                    'type': 'chat_message', 
+                    'type': 'chat_message', # Matches the handler in consumers.py
                     'message': f"Sent a file: {uploaded_file.name}",
-                    'encrypted_link': encrypted_link, # This is the critical key
+                    'encrypted_link': encrypted_link,
                     'file_name': uploaded_file.name,
-                    'sender': sender_name,
+                    'sender': request.user.username if request.user.is_authenticated else 'AnonymousUser',
                     'profanity_warning': has_profanity,
                 }
             )
+
+            return JsonResponse({'success': True, 'encrypted_link': encrypted_link})
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=500)
             

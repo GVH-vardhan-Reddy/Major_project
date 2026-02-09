@@ -5,29 +5,52 @@
     <title>Chat Room: {{ room_name }}</title>
     
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f0f2f5; padding: 20px; }
+        /* Main Layout */
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f0f2f5; padding: 20px; margin: 0; }
         #chat-container { max-width: 900px; margin: 0 auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
-        #chat-log { height: 450px; border: 1px solid #e0e0e0; padding: 15px; margin-bottom: 15px; overflow-y: auto; background-color: #ffffff; border-radius: 8px; }
+        #chat-log { height: 400px; border: 1px solid #e0e0e0; padding: 15px; margin-bottom: 15px; overflow-y: auto; background-color: #ffffff; border-radius: 8px; }
         
-        /* Message Bubbles */
+        /* Room Message Bubbles */
         .msg { margin-bottom: 12px; padding: 10px; border-radius: 8px; border-bottom: 1px solid #f0f0f0; }
         .sender-name { font-weight: bold; color: #007bff; margin-right: 8px; }
         
         /* Profanity Warning Style */
-        .profane-alert { 
-            background-color: #fff5f5 !important; 
-            border-left: 5px solid #ff4d4d !important; 
-            color: #b91c1c;
-        }
-        .warning-badge {
-            background: #ff4d4d; color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.75em; font-weight: bold; margin-right: 10px;
-        }
+        .profane-alert { background-color: #fff5f5 !important; border-left: 5px solid #ff4d4d !important; color: #b91c1c; }
 
+        /* Input Areas */
         #message-form-container { display: flex; gap: 10px; }
         #chat-message-input { flex-grow: 1; padding: 12px; border: 1px solid #ddd; border-radius: 6px; }
-        #chat-message-submit { padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 6px; cursor: pointer; }
-        #upload-form { margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px; }
+        #chat-message-submit { padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        #upload-form { margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px; border: 1px solid #eee; }
         .feedback-box { margin-top: 10px; font-size: 0.9em; font-weight: 500; }
+
+        /* --- AI CHATBOT WIDGET STYLES --- */
+        #ai-toggle-btn {
+            position: fixed; bottom: 20px; right: 20px; 
+            background: #8e44ad; color: white; border: none; 
+            border-radius: 50%; width: 60px; height: 60px; 
+            cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.3); font-size: 24px;
+            z-index: 1000; transition: transform 0.2s;
+        }
+        #ai-toggle-btn:hover { transform: scale(1.1); }
+
+        #ai-chat-window {
+            position: fixed; bottom: 90px; right: 20px;
+            width: 350px; height: 450px; background: white;
+            display: none; flex-direction: column;
+            border-radius: 12px; box-shadow: 0 5px 25px rgba(0,0,0,0.2);
+            overflow: hidden; border: 1px solid #ddd; z-index: 1000;
+        }
+
+        #ai-header { background: #8e44ad; color: white; padding: 15px; font-weight: bold; display: flex; justify-content: space-between; }
+        #ai-log { flex-grow: 1; padding: 15px; overflow-y: auto; font-size: 0.9em; background: #f9f9f9; display: flex; flex-direction: column; gap: 10px; }
+        #ai-input-container { display: flex; padding: 10px; border-top: 1px solid #eee; background: white; }
+        #ai-input { flex-grow: 1; border: 1px solid #ddd; padding: 8px; border-radius: 4px; outline: none; }
+        
+        .ai-bubble { padding: 8px 12px; border-radius: 12px; max-width: 85%; line-height: 1.4; }
+        .bot-msg { background: #e9ecef; align-self: flex-start; border-bottom-left-radius: 2px; }
+        .user-msg { background: #d1d8ff; align-self: flex-end; border-bottom-right-radius: 2px; }
+        .loading-dots { font-style: italic; color: #888; font-size: 0.8em; }
     </style>
 </head>
 <body>
@@ -37,7 +60,7 @@
         <div id="chat-log"></div>
 
         <div id="message-form-container">
-            <input id="chat-message-input" type="text" placeholder="Type a message...">
+            <input id="chat-message-input" type="text" placeholder="Type a message to the room...">
             <button id="chat-message-submit">Send</button>
         </div>
         
@@ -51,11 +74,27 @@
         <div id="message-box" class="feedback-box"></div>
     </div>
 
+    <button id="ai-toggle-btn" onclick="toggleAIChat()">🤖</button>
+
+    <div id="ai-chat-window">
+        <div id="ai-header">
+            <span>Gemini AI Assistant</span>
+            <span style="cursor:pointer" onclick="toggleAIChat()">×</span>
+        </div>
+        <div id="ai-log">
+            <div class="ai-bubble bot-msg">Hello! I'm your AI assistant. How can I help you today?</div>
+        </div>
+        <div id="ai-input-container">
+            <input type="text" id="ai-input" placeholder="Ask AI anything...">
+            <button onclick="sendAIMessage()" style="background:#8e44ad; color:white; border:none; padding:5px 12px; margin-left:5px; border-radius:4px; cursor:pointer;">Ask</button>
+        </div>
+    </div>
+
 <script>
     const roomName = "{{ room_name }}";
     const chatLog = document.querySelector("#chat-log");
 
-    // CSRF Utility
+    // --- UTILITIES ---
     function getCookie(name) {
         let cookieValue = null;
         if (document.cookie && document.cookie !== '') {
@@ -71,68 +110,46 @@
         return cookieValue;
     }
 
-    // Decryption API Call
-    async function decryptAndRedirect(encryptedLink) {
-        const response = await fetch('/chat/decrypt_link/', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
-            body: JSON.stringify({ encrypted_link: encryptedLink })
-        });
-        const data = await response.json();
-        if (data.success) window.open(data.file_url, '_blank');
-        else alert('Link expired or invalid.');
-    }
-
-    // WebSocket Connection
+    // --- ROOM WEBSOCKET LOGIC ---
     const chatSocket = new WebSocket(`ws://${window.location.host}/ws/chat/${roomName}/`);
 
- // Inside templates/chat/room.html -> chatSocket.onmessage
+    chatSocket.onmessage = function(e) {
+        const data = JSON.parse(e.data);
+        const msgDiv = document.createElement('div');
+        msgDiv.className = 'msg';
+        
+        let html = `<span class="sender-name">${data.sender}:</span> `;
 
-chatSocket.onmessage = function(e) {
-    const data = JSON.parse(e.data);
-    const chatLog = document.querySelector("#chat-log");
-    const msgDiv = document.createElement('div');
-    
-    // Styling
-    msgDiv.style.padding = "10px";
-    msgDiv.style.borderBottom = "1px solid #eee";
-    msgDiv.style.color = "#000";
+        if (data.encrypted_link) {
+            html += `<div style="margin: 10px; padding: 10px; background: #f0f7ff; border: 1px dashed #007bff; border-radius: 5px;">
+                        <span>📁 Encrypted File: ${data.file_name}</span><br>
+                        <button onclick="decryptAndRedirect('${data.encrypted_link}')" 
+                                style="margin-top: 5px; cursor: pointer; color: white; background: #007bff; border: none; padding: 5px 10px; border-radius: 3px;">
+                            Decrypt & View PDF
+                        </button>
+                     </div>`;
+        } else {
+            html += `<span>${data.message}</span>`;
+        }
 
-    // Handle the AI warning background
-    if (data.profanity_warning) {
-        msgDiv.style.backgroundColor = "#fff0f0";
-    }
+        if (data.profanity_warning) {
+            msgDiv.classList.add('profane-alert');
+            html += ` <small style="color: red;">⚠️ AI Flagged</small>`;
+        }
 
-    let html = `<strong>${data.sender}:</strong> `;
+        msgDiv.innerHTML = html;
+        chatLog.appendChild(msgDiv);
+        chatLog.scrollTop = chatLog.scrollHeight;
+    };
 
-    // CHECK FOR ENCRYPTED LINK
-    if (data.encrypted_link) {
-        // If a link exists, show a "Download/View" button
-        html += `<span class="file-box" style="display:block; margin-top:5px; background:#e3f2fd; padding:8px; border-radius:4px;">
-                    <a href="#" onclick="decryptAndRedirect('${data.encrypted_link}')" style="color:#007bff; font-weight:bold; text-decoration:none;">
-                        📁 Click to Access: ${data.file_name}
-                    </a>
-                 </span>`;
-    } else {
-        html += `<span>${data.message}</span>`;
-    }
-
-    if (data.profanity_warning) {
-        html += ` <small style="color:red;">⚠️ AI Flagged</small>`;
-    }
-
-    msgDiv.innerHTML = html;
-    chatLog.appendChild(msgDiv);
-    chatLog.scrollTop = chatLog.scrollHeight;
-};;
-
-    // Form Handling
     document.querySelector('#chat-message-submit').onclick = () => {
         const input = document.querySelector('#chat-message-input');
+        if(input.value.trim() === "") return;
         chatSocket.send(JSON.stringify({ 'message': input.value }));
         input.value = '';
     };
 
+    // --- FILE UPLOAD LOGIC ---
     document.getElementById('upload-form').onsubmit = async function(e) {
         e.preventDefault();
         const msgBox = document.getElementById('message-box');
@@ -157,6 +174,75 @@ chatSocket.onmessage = function(e) {
             msgBox.style.color = 'red';
         }
     };
+
+    // --- AI CHATBOT LOGIC ---
+    const aiChatWindow = document.getElementById('ai-chat-window');
+    const aiLog = document.getElementById('ai-log');
+    const aiInput = document.getElementById('ai-input');
+
+    function toggleAIChat() {
+        aiChatWindow.style.display = (aiChatWindow.style.display === 'none' || aiChatWindow.style.display === '') ? 'flex' : 'none';
+    }
+    let aiHistory = [];
+    async function sendAIMessage() {
+    const message = aiInput.value.trim();
+    if (!message) return;
+
+    aiLog.innerHTML += `<div class="ai-bubble user-msg">${message}</div>`;
+    aiInput.value = '';
+    
+    const loadingId = "loading-" + Date.now();
+    aiLog.innerHTML += `<div id="${loadingId}" class="ai-bubble bot-msg">Thinking...</div>`;
+    aiLog.scrollTop = aiLog.scrollHeight;
+
+    try {
+        const response = await fetch('/chat/ai_response/', {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken') 
+            },
+            // SEND THE HISTORY ARRAY TO DJANGO
+            body: JSON.stringify({ 
+                'message': message,
+                'history': aiHistory 
+            })
+        });
+
+        const data = await response.json();
+        document.getElementById(loadingId).remove();
+        
+        if (data.reply) {
+            aiLog.innerHTML += `<div class="ai-bubble bot-msg">${data.reply}</div>`;
+            
+            // UPDATE HISTORY: Store both the user's prompt and AI's response
+            aiHistory.push({ role: "user", parts: [message] });
+            aiHistory.push({ role: "model", parts: [data.reply] });
+        }
+    } catch (err) {
+        document.getElementById(loadingId).remove();
+        aiLog.innerHTML += `<div class="ai-bubble bot-msg">Error connecting.</div>`;
+    }
+    aiLog.scrollTop = aiLog.scrollHeight;
+}
+
+    // Enter key for AI
+    aiInput.addEventListener("keypress", (e) => { if (e.key === "Enter") sendAIMessage(); });
+    // Enter key for Room
+    document.querySelector('#chat-message-input').addEventListener("keypress", (e) => { 
+        if (e.key === "Enter") document.querySelector('#chat-message-submit').click(); 
+    });
+
+    async function decryptAndRedirect(encryptedLink) {
+        const response = await fetch('/chat/decrypt_link/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+            body: JSON.stringify({ encrypted_link: encryptedLink })
+        });
+        const data = await response.json();
+        if (data.success) window.open(data.file_url, '_blank');
+        else alert('Link expired or invalid.');
+    }
 </script>
 </body>
 </html>

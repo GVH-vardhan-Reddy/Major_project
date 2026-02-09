@@ -17,6 +17,8 @@ urlpatterns = [
     # 3. API endpoint for link decryption (MUST come before the dynamic path)
     path("decrypt_link/", views.decrypt_link_view, name="decrypt_link"), 
     
+    # 5. API endpoint for chatbot response
+    path('ai_response/', views.chatbot_response, name='ai_response'),
     # 4. Specific chat room view (This dynamic path must be last)
     path("<str:room_name>/", views.room, name="room"),
 ]

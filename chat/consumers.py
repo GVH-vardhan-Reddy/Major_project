@@ -59,6 +59,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
             'message': event.get('message', ''),
             'sender': event.get('sender', 'System'),
             'profanity_warning': event.get('profanity_warning', False),
-            'encrypted_link': event.get('encrypted_link'),
+            'encrypted_link': event.get('encrypted_link'), # The encrypted PDF link
             'file_name': event.get('file_name'),
         }))
